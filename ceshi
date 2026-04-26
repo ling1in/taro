@@ -1,0 +1,1087 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>🔮 塔罗灵视 - AI塔罗牌解读</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Cinzel:wght@400;600;700&display=swap');
+
+        :root {
+            --mystic-gold: #d4af37;
+            --mystic-purple: #6b21a8;
+            --mystic-dark: #0f0c29;
+            --mystic-light: #f3e8ff;
+        }
+
+        body {
+            font-family: 'Noto Serif SC', serif;
+            background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+            min-height: 100vh;
+            color: #e9d5ff;
+        }
+
+        .mystic-font {
+            font-family: 'Cinzel', serif;
+        }
+
+        /* 星空背景动画 */
+        .stars {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .star {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: white;
+            border-radius: 50%;
+            animation: twinkle 3s infinite;
+        }
+
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 1; }
+        }
+
+        /* 卡牌翻转效果 */
+        .tarot-card {
+            perspective: 1000px;
+            transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .tarot-card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.8s;
+            transform-style: preserve-3d;
+        }
+
+        .tarot-card.flipped .tarot-card-inner {
+            transform: rotateY(180deg);
+        }
+
+        .tarot-card-front, .tarot-card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .tarot-card-back {
+            transform: rotateY(180deg);
+        }
+
+        /* 卡牌背面图案 */
+        .card-pattern {
+            background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
+            border: 2px solid #d4af37;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card-pattern::before {
+            content: '';
+            position: absolute;
+            width: 80%;
+            height: 80%;
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            transform: rotate(45deg);
+        }
+
+        .card-pattern::after {
+            content: '✦';
+            font-size: 2rem;
+            color: #d4af37;
+            opacity: 0.6;
+        }
+
+        /* 扫描动画 */
+        .scan-line {
+            position: absolute;
+            width: 100%;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, #d4af37, transparent);
+            box-shadow: 0 0 20px #d4af37;
+            animation: scan 2s linear infinite;
+            display: none;
+        }
+
+        @keyframes scan {
+            0% { top: 0; }
+            100% { top: 100%; }
+        }
+
+        .scanning .scan-line {
+            display: block;
+        }
+
+        /* 发光效果 */
+        .glow-border {
+            box-shadow: 0 0 20px rgba(212, 175, 55, 0.3), inset 0 0 20px rgba(212, 175, 55, 0.1);
+            border: 1px solid rgba(212, 175, 55, 0.5);
+        }
+
+        .glow-text {
+            text-shadow: 0 0 10px rgba(212, 175, 55, 0.5);
+        }
+
+        /* 上传区域 */
+        .upload-zone {
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px dashed rgba(212, 175, 55, 0.4);
+            transition: all 0.3s ease;
+        }
+
+        .upload-zone:hover, .upload-zone.dragover {
+            background: rgba(212, 175, 55, 0.1);
+            border-color: #d4af37;
+            transform: scale(1.02);
+        }
+
+        /* 牌阵网格 */
+        .spread-grid {
+            display: grid;
+            gap: 1rem;
+            padding: 1rem;
+        }
+
+        .spread-celtic {
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(4, 1fr);
+            max-width: 400px;
+            margin: 0 auto;
+        }
+
+        .spread-past-present {
+            grid-template-columns: repeat(3, 1fr);
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        .spread-single {
+            grid-template-columns: 1fr;
+            max-width: 200px;
+            margin: 0 auto;
+        }
+
+        /* 解读卡片 */
+        .interpretation-card {
+            background: rgba(15, 12, 41, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .interpretation-card:hover {
+            border-color: #d4af37;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        /* 加载动画 */
+        .crystal-ball {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.8), rgba(139, 92, 246, 0.6), rgba(15, 12, 41, 0.9));
+            box-shadow: 0 0 30px rgba(139, 92, 246, 0.5), inset 0 0 20px rgba(255,255,255,0.2);
+            animation: pulse 2s infinite;
+            position: relative;
+        }
+
+        .crystal-ball::after {
+            content: '';
+            position: absolute;
+            top: 15%;
+            left: 20%;
+            width: 25%;
+            height: 15%;
+            background: rgba(255,255,255,0.6);
+            border-radius: 50%;
+            filter: blur(2px);
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 0.9; }
+            50% { transform: scale(1.05); opacity: 1; }
+        }
+
+        /* 隐藏文件输入 */
+        input[type="file"] {
+            display: none;
+        }
+
+        /* 自定义滚动条 */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #0f0c29;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #6b21a8;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #d4af37;
+        }
+
+        /* 位置标签 */
+        .position-badge {
+            position: absolute;
+            top: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #d4af37;
+            color: #0f0c29;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: bold;
+            z-index: 10;
+        }
+
+        /* 正逆位标签 */
+        .orientation-badge {
+            position: absolute;
+            bottom: -8px;
+            right: -8px;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            font-weight: bold;
+            z-index: 10;
+        }
+
+        .orientation-upright {
+            background: #10b981;
+            color: white;
+        }
+
+        .orientation-reversed {
+            background: #ef4444;
+            color: white;
+        }
+
+        /* 响应式调整 */
+        @media (max-width: 640px) {
+            .spread-celtic {
+                transform: scale(0.8);
+                transform-origin: top center;
+            }
+        }
+
+        /* 模态框动画 */
+        .modal-enter {
+            animation: modalSlideIn 0.3s ease-out;
+        }
+
+        @keyframes modalSlideIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* 能量波纹 */
+        .energy-ring {
+            position: absolute;
+            border: 2px solid rgba(212, 175, 55, 0.3);
+            border-radius: 50%;
+            animation: ripple 3s infinite;
+        }
+
+        @keyframes ripple {
+            0% { width: 0; height: 0; opacity: 1; }
+            100% { width: 200px; height: 200px; opacity: 0; }
+        }
+    </style>
+</head>
+<body class="antialiased overflow-x-hidden">
+
+    <!-- 星空背景 -->
+    <div class="stars" id="stars"></div>
+
+    <!-- 主应用容器 -->
+    <div class="relative z-10 min-h-screen flex flex-col">
+        
+        <!-- 头部 -->
+        <header class="sticky top-0 z-50 bg-opacity-90 backdrop-blur-md bg-[#0f0c29] border-b border-purple-900/50">
+            <div class="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
+                <div class="flex items-center gap-3">
+                    <div class="text-3xl">🔮</div>
+                    <div>
+                        <h1 class="text-2xl font-bold mystic-font text-[#d4af37] glow-text">塔罗灵视</h1>
+                        <p class="text-xs text-purple-300">AI智能塔罗解读</p>
+                    </div>
+                </div>
+                <button onclick="resetApp()" class="p-2 rounded-full hover:bg-purple-800/50 transition-colors text-purple-300">
+                    <i class="fas fa-redo-alt"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- 主要内容区 -->
+        <main class="flex-1 max-w-6xl mx-auto w-full px-4 py-6">
+
+            <!-- 步骤1: 选择牌阵 -->
+            <section id="step-spread" class="mb-8">
+                <div class="text-center mb-6">
+                    <h2 class="text-xl font-bold text-[#d4af37] mb-2">选择牌阵</h2>
+                    <p class="text-purple-300 text-sm">选择适合您问题的牌阵布局</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <!-- 单张牌 -->
+                    <div onclick="selectSpread('single')" class="spread-option cursor-pointer bg-purple-900/30 border-2 border-purple-700/50 rounded-xl p-6 hover:border-[#d4af37] transition-all group" data-spread="single">
+                        <div class="text-4xl mb-3 text-center group-hover:scale-110 transition-transform">🃏</div>
+                        <h3 class="text-lg font-bold text-center text-purple-200 mb-2">单张牌</h3>
+                        <p class="text-xs text-purple-400 text-center">快速指引，每日运势</p>
+                        <div class="mt-3 flex justify-center gap-1 opacity-50">
+                            <div class="w-8 h-12 bg-purple-800 rounded border border-purple-600"></div>
+                        </div>
+                    </div>
+
+                    <!-- 三张牌 -->
+                    <div onclick="selectSpread('past-present')" class="spread-option cursor-pointer bg-purple-900/30 border-2 border-purple-700/50 rounded-xl p-6 hover:border-[#d4af37] transition-all group" data-spread="past-present">
+                        <div class="text-4xl mb-3 text-center group-hover:scale-110 transition-transform">☘️</div>
+                        <h3 class="text-lg font-bold text-center text-purple-200 mb-2">过去·现在·未来</h3>
+                        <p class="text-xs text-purple-400 text-center">时间之流，事态发展</p>
+                        <div class="mt-3 flex justify-center gap-1 opacity-50">
+                            <div class="w-8 h-12 bg-purple-800 rounded border border-purple-600"></div>
+                            <div class="w-8 h-12 bg-purple-800 rounded border border-purple-600"></div>
+                            <div class="w-8 h-12 bg-purple-800 rounded border border-purple-600"></div>
+                        </div>
+                    </div>
+
+                    <!-- 凯尔特十字 -->
+                    <div onclick="selectSpread('celtic')" class="spread-option cursor-pointer bg-purple-900/30 border-2 border-purple-700/50 rounded-xl p-6 hover:border-[#d4af37] transition-all group" data-spread="celtic">
+                        <div class="text-4xl mb-3 text-center group-hover:scale-110 transition-transform">✡️</div>
+                        <h3 class="text-lg font-bold text-center text-purple-200 mb-2">凯尔特十字</h3>
+                        <p class="text-xs text-purple-400 text-center">深度解析，全面洞察</p>
+                        <div class="mt-3 grid grid-cols-3 gap-1 opacity-50 max-w-[100px] mx-auto">
+                            <div class="w-full h-8 bg-purple-800 rounded border border-purple-600"></div>
+                            <div class="w-full h-8 bg-purple-800 rounded border border-purple-600"></div>
+                            <div class="w-full h-8 bg-purple-800 rounded border border-purple-600"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 步骤2: 拍照/上传 -->
+            <section id="step-upload" class="mb-8 hidden">
+                <div class="text-center mb-6">
+                    <h2 class="text-xl font-bold text-[#d4af37] mb-2">拍摄或上传牌阵</h2>
+                    <p class="text-purple-300 text-sm">请清晰拍摄每张牌的位置和正逆位</p>
+                </div>
+
+                <!-- 牌阵预览区域 -->
+                <div id="spread-preview" class="mb-6 bg-black/20 rounded-2xl p-4 min-h-[300px] flex items-center justify-center relative overflow-hidden">
+                    <div class="text-purple-500 text-center">
+                        <i class="fas fa-layer-group text-4xl mb-2"></i>
+                        <p>请先选择牌阵类型</p>
+                    </div>
+                </div>
+
+                <!-- 上传控制区 -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- 拍照按钮 -->
+                    <div class="upload-zone rounded-xl p-8 text-center cursor-pointer relative overflow-hidden" onclick="document.getElementById('camera-input').click()">
+                        <input type="file" id="camera-input" accept="image/*" capture="environment" onchange="handleImageUpload(event)">
+                        <div class="relative z-10">
+                            <i class="fas fa-camera text-4xl text-[#d4af37] mb-3"></i>
+                            <h3 class="text-lg font-bold text-purple-200 mb-1">拍照上传</h3>
+                            <p class="text-xs text-purple-400">直接拍摄您的牌阵</p>
+                        </div>
+                        <div class="energy-ring top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"></div>
+                    </div>
+
+                    <!-- 相册选择 -->
+                    <div class="upload-zone rounded-xl p-8 text-center cursor-pointer" onclick="document.getElementById('gallery-input').click()">
+                        <input type="file" id="gallery-input" accept="image/*" multiple onchange="handleImageUpload(event)">
+                        <div class="relative z-10">
+                            <i class="fas fa-images text-4xl text-[#d4af37] mb-3"></i>
+                            <h3 class="text-lg font-bold text-purple-200 mb-1">从相册选择</h3>
+                            <p class="text-xs text-purple-400">选择已拍摄的牌阵照片</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 已上传图片预览 -->
+                <div id="uploaded-images" class="mt-6 grid grid-cols-3 md:grid-cols-6 gap-3 hidden">
+                    <!-- 动态插入 -->
+                </div>
+
+                <!-- 手动输入备选 -->
+                <div class="mt-6 text-center">
+                    <button onclick="showManualInput()" class="text-sm text-purple-400 hover:text-[#d4af37] underline">
+                        无法拍照？手动选择卡牌
+                    </button>
+                </div>
+            </section>
+
+            <!-- 步骤3: 处理中 -->
+            <section id="step-processing" class="hidden flex flex-col items-center justify-center py-20">
+                <div class="crystal-ball mb-6"></div>
+                <h2 class="text-2xl font-bold text-[#d4af37] mb-2 mystic-font">正在解读牌阵...</h2>
+                <p class="text-purple-300 text-sm mb-8" id="processing-text">连接宇宙能量中</p>
+                <div class="w-64 h-1 bg-purple-900 rounded-full overflow-hidden">
+                    <div id="progress-bar" class="h-full bg-gradient-to-r from-purple-600 to-[#d4af37] transition-all duration-300" style="width: 0%"></div>
+                </div>
+            </section>
+
+            <!-- 步骤4: 解读结果 -->
+            <section id="step-result" class="hidden">
+                <!-- 总体概览 -->
+                <div class="bg-purple-900/20 border border-purple-700/50 rounded-2xl p-6 mb-6 glow-border">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-12 h-12 rounded-full bg-[#d4af37]/20 flex items-center justify-center text-2xl">🌟</div>
+                        <div>
+                            <h2 class="text-xl font-bold text-[#d4af37]">牌阵总览</h2>
+                            <p class="text-sm text-purple-300" id="spread-name">凯尔特十字牌阵</p>
+                        </div>
+                    </div>
+                    <p class="text-purple-200 leading-relaxed" id="overall-reading">
+                        宇宙的能量在此汇聚，牌面揭示了一段关于转变与成长的旅程...
+                    </p>
+                </div>
+
+                <!-- 牌阵展示 -->
+                <div class="mb-8">
+                    <h3 class="text-lg font-bold text-[#d4af37] mb-4 text-center mystic-font">牌面解析</h3>
+                    <div id="cards-container" class="grid gap-4">
+                        <!-- 动态插入卡牌解读 -->
+                    </div>
+                </div>
+
+                <!-- 建议与指引 -->
+                <div class="bg-gradient-to-br from-purple-900/40 to-[#0f0c29] border border-[#d4af37]/30 rounded-2xl p-6 mb-6">
+                    <h3 class="text-lg font-bold text-[#d4af37] mb-3 flex items-center gap-2">
+                        <i class="fas fa-star"></i> 宇宙指引
+                    </h3>
+                    <div class="space-y-3 text-purple-200" id="guidance-text">
+                        <p>• 保持内心的平静，信任直觉的指引</p>
+                        <p>• 当前是采取行动的好时机，宇宙能量支持您的决定</p>
+                        <p>• 注意身边出现的同步性征兆</p>
+                    </div>
+                </div>
+
+                <!-- 操作按钮 -->
+                <div class="flex gap-4 justify-center">
+                    <button onclick="saveReading()" class="px-6 py-3 bg-purple-800 hover:bg-purple-700 rounded-xl text-white font-bold transition-all flex items-center gap-2">
+                        <i class="fas fa-save"></i> 保存解读
+                    </button>
+                    <button onclick="shareReading()" class="px-6 py-3 bg-[#d4af37] hover:bg-[#b8941f] rounded-xl text-[#0f0c29] font-bold transition-all flex items-center gap-2">
+                        <i class="fas fa-share-alt"></i> 分享
+                    </button>
+                    <button onclick="resetApp()" class="px-6 py-3 border border-purple-600 hover:border-[#d4af37] rounded-xl text-purple-300 transition-all">
+                        重新占卜
+                    </button>
+                </div>
+            </section>
+
+            <!-- 手动输入模态框 -->
+            <div id="manual-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+                <div class="bg-[#1e1b4b] border border-[#d4af37]/50 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto modal-enter">
+                    <div class="p-6 border-b border-purple-800 flex justify-between items-center">
+                        <h3 class="text-xl font-bold text-[#d4af37]">手动选择卡牌</h3>
+                        <button onclick="closeManualModal()" class="text-purple-400 hover:text-white">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+                    <div class="p-6">
+                        <div id="manual-slots" class="space-y-4">
+                            <!-- 动态生成卡牌选择位 -->
+                        </div>
+                        <div class="mt-6 flex justify-end gap-3">
+                            <button onclick="closeManualModal()" class="px-4 py-2 text-purple-300 hover:text-white">取消</button>
+                            <button onclick="confirmManualSelection()" class="px-6 py-2 bg-[#d4af37] text-[#0f0c29] rounded-lg font-bold hover:bg-[#b8941f]">
+                                确认选择
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+
+        <!-- 页脚 -->
+        <footer class="border-t border-purple-900/50 bg-[#0f0c29]/80 backdrop-blur py-6 mt-8">
+            <div class="max-w-6xl mx-auto px-4 text-center text-purple-500 text-sm">
+                <p>🔮 塔罗灵视 - 仅供娱乐与自我反思，请理性看待</p>
+                <p class="mt-1 text-xs">命运掌握在自己手中，塔罗只是映照内心的镜子</p>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        // 塔罗牌数据库
+        const TAROT_CARDS = [
+            { id: 0, name: "愚人", nameEn: "The Fool", element: "风", keywords: "新的开始, 冒险, 纯真, 自发", upright: "新的旅程即将开始，保持开放的心态，相信直觉，勇敢踏出第一步。这是充满潜能的时刻。", reversed: "需要谨慎行事，避免冲动决定。可能过于天真或缺乏计划，建议重新审视目标。" },
+            { id: 1, name: "魔术师", nameEn: "The Magician", element: "风", keywords: "创造, 显化, 能力, 专注", upright: "你拥有实现目标所需的所有资源和能力。现在是采取行动、将想法变为现实的最佳时机。", reversed: "能力被浪费或误用，可能存在欺骗或操纵。需要重新评估自己的动机和方法。" },
+            { id: 2, name: "女祭司", nameEn: "The High Priestess", element: "水", keywords: "直觉, 神秘, 潜意识, 智慧", upright: "倾听内在的声音，相信直觉胜过逻辑。隐藏的知识即将揭示，保持耐心和静默。", reversed: "可能忽视直觉或陷入自我欺骗。需要重新连接内在智慧，避免表面化的判断。" },
+            { id: 3, name: "皇后", nameEn: "The Empress", element: "土", keywords: "丰饶, 母性, 自然, 创造", upright: "丰盛与创造力环绕着你。关注自然、艺术和感官享受，培育身边的人和项目。", reversed: "可能感到匮乏或创造力受阻。需要重新连接自然，照顾好自己的身心需求。" },
+            { id: 4, name: "皇帝", nameEn: "The Emperor", element: "火", keywords: "权威, 结构, 控制, 父性", upright: "建立秩序和结构，运用理性和逻辑。展现领导力，为混乱的情况带来稳定。", reversed: "可能过于控制或僵化。需要放松对细节的掌控，允许更多的灵活性。" },
+            { id: 5, name: "教皇", nameEn: "The Hierophant", element: "土", keywords: "传统, 信仰, 教育, 仪式", upright: "遵循传统智慧或寻求导师指引。重视道德和精神价值，参与团体或社区活动。", reversed: "挑战传统观念，寻找自己的道路。可能需要打破规则或质疑权威。" },
+            { id: 6, name: "恋人", nameEn: "The Lovers", element: "风", keywords: "爱, 选择, 和谐, 价值观", upright: "重要的关系或选择出现。遵循内心的真实感受，寻求和谐与平衡的结合。", reversed: "关系中的不和谐或错误的选择。价值观冲突，需要重新审视优先级。" },
+            { id: 7, name: "战车", nameEn: "The Chariot", element: "水", keywords: "意志, 胜利, 控制, 前进", upright: "通过坚定的意志和自律克服障碍。保持专注，胜利就在眼前，勇往直前。", reversed: "缺乏方向或控制。可能过于激进或放弃太快，需要重新调整策略。" },
+            { id: 8, name: "力量", nameEn: "Strength", element: "火", keywords: "勇气, 耐心, 内在力量, 同情", upright: "以柔克刚，用耐心和同情心而非暴力来解决问题。内在的力量比外在的强制更有效。", reversed: "可能感到无力或缺乏自信。需要重新发现内在的勇气，避免自我怀疑。" },
+            { id: 9, name: "隐者", nameEn: "The Hermit", element: "土", keywords: "内省, 孤独, 指引, 真理", upright: "退后一步，寻求独处和内在指引。答案在内心，通过冥想和反思找到方向。", reversed: "可能过于孤立或拒绝帮助。需要平衡独处与社交，避免过度退缩。" },
+            { id: 10, name: "命运之轮", nameEn: "Wheel of Fortune", element: "火", keywords: "变化, 周期, 命运, 转折点", upright: "命运之轮转动，带来积极的变化和机遇。顺应周期，把握幸运的转折点。", reversed: "可能遇到挫折或不顺的周期。接受变化，知道低谷之后必有回升。" },
+            { id: 11, name: "正义", nameEn: "Justice", element: "风", keywords: "公正, 因果, 真理, 法律", upright: "公正和平衡将 prevail。面对真相，承担行为的后果，做出公平的决定。", reversed: "可能遭遇不公或逃避责任。需要重新审视自己的行为，寻求真正的平衡。" },
+            { id: 12, name: "倒吊人", nameEn: "The Hanged Man", element: "水", keywords: "牺牲, 等待, 新视角, 放手", upright: "暂停行动，从不同角度看待问题。通过牺牲和等待获得更深的理解。", reversed: "抗拒改变或无谓的牺牲。可能需要更积极地行动，避免过度拖延。" },
+            { id: 13, name: "死神", nameEn: "Death", element: "水", keywords: "结束, 转变, 新生, 释放", upright: "重要的结束带来新开始。放下过去，拥抱转变，这是自然循环的一部分。", reversed: "抗拒结束或转变。紧抓不放只会延长痛苦，学会放手才能前进。" },
+            { id: 14, name: "节制", nameEn: "Temperance", element: "火", keywords: "平衡, 调和, 耐心, 融合", upright: "寻求平衡与中庸之道。融合对立面，保持耐心，一切都会恰到好处。", reversed: "可能失衡或过度。需要节制欲望，避免极端行为。" },
+            { id: 15, name: "恶魔", nameEn: "The Devil", element: "土", keywords: "束缚, 物质, 诱惑, 阴影", upright: "意识到束缚自己的枷锁。物质欲望或成瘾可能控制着你，是时候打破限制了。", reversed: "开始挣脱束缚，释放自己。认识到限制是自我强加的，重获自由。" },
+            { id: 16, name: "塔", nameEn: "The Tower", element: "火", keywords: "突变, 觉醒, 破坏, 启示", upright: "突然的改变或崩塌带来觉醒。虽然痛苦，但这是必要的清理，为新的成长腾出空间。", reversed: "避免或延迟不可避免的改变。内在的动荡需要释放，不要抗拒必要的崩塌。" },
+            { id: 17, name: "星星", nameEn: "The Star", element: "风", keywords: "希望, 灵感, 宁静, 指引", upright: "黑暗后的光明，希望重新点燃。保持信心，宇宙在指引你走向宁静与疗愈。", reversed: "可能感到绝望或失去信心。需要重新连接希望和灵感，相信未来。" },
+            { id: 18, name: "月亮", nameEn: "The Moon", element: "水", keywords: "幻觉, 恐惧, 潜意识, 未知", upright: "面对恐惧和不确定性。事情并非表面所见，相信直觉穿越迷雾和幻觉。", reversed: "恐惧消散，真相大白。从混乱中走出，找到清晰和安宁。" },
+            { id: 19, name: "太阳", nameEn: "The Sun", element: "火", keywords: "成功, 活力, 快乐, 真相", upright: "光明与成功的时刻。活力充沛，一切清晰明朗，享受当下的快乐与成就。", reversed: "可能暂时的阴霾或自我怀疑。阳光总会回来，保持乐观。" },
+            { id: 20, name: "审判", nameEn: "Judgement", element: "火", keywords: "重生, 觉醒, 评价, 召唤", upright: "觉醒与重生的时刻。听到内心的召唤，从过去的经验中学习，迎接新的开始。", reversed: "自我怀疑或逃避评价。需要诚实地面对自己，接受必要的改变。" },
+            { id: 21, name: "世界", nameEn: "The World", element: "土", keywords: "完成, 成就, 整合, 圆满", upright: "一个周期的圆满完成。成就感强烈，所有元素和谐统一，庆祝你的成功。", reversed: "可能感到不完整或功亏一篑。需要最后的努力来完成目标，或接受不完美。" }
+        ];
+
+        // 牌阵配置
+        const SPREADS = {
+            'single': {
+                name: '单张牌',
+                positions: ['当下指引'],
+                layout: 'spread-single'
+            },
+            'past-present': {
+                name: '过去·现在·未来',
+                positions: ['过去', '现在', '未来'],
+                layout: 'spread-past-present'
+            },
+            'celtic': {
+                name: '凯尔特十字',
+                positions: ['现状', '阻碍', '根基', '过去', '目标', '未来', '自我', '环境', '希望', '结果'],
+                layout: 'spread-celtic'
+            }
+        };
+
+        // 状态管理
+        let currentSpread = null;
+        let currentCards = [];
+        let uploadedImages = [];
+
+        // 初始化星空
+        function initStars() {
+            const container = document.getElementById('stars');
+            for (let i = 0; i < 100; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                star.style.left = Math.random() * 100 + '%';
+                star.style.top = Math.random() * 100 + '%';
+                star.style.animationDelay = Math.random() * 3 + 's';
+                star.style.width = Math.random() * 3 + 'px';
+                star.style.height = star.style.width;
+                container.appendChild(star);
+            }
+        }
+
+        // 选择牌阵
+        function selectSpread(spreadType) {
+            currentSpread = spreadType;
+            
+            // 更新UI选中状态
+            document.querySelectorAll('.spread-option').forEach(el => {
+                el.classList.remove('border-[#d4af37]', 'bg-purple-900/50');
+                el.classList.add('border-purple-700/50');
+            });
+            document.querySelector(`[data-spread="${spreadType}"]`).classList.add('border-[#d4af37]', 'bg-purple-900/50');
+            document.querySelector(`[data-spread="${spreadType}"]`).classList.remove('border-purple-700/50');
+
+            // 显示上传区域
+            document.getElementById('step-upload').classList.remove('hidden');
+            
+            // 渲染牌阵占位
+            renderSpreadPlaceholder(spreadType);
+            
+            // 滚动到上传区域
+            setTimeout(() => {
+                document.getElementById('step-upload').scrollIntoView({ behavior: 'smooth' });
+            }, 100);
+        }
+
+        // 渲染牌阵占位
+        function renderSpreadPlaceholder(spreadType) {
+            const container = document.getElementById('spread-preview');
+            const spread = SPREADS[spreadType];
+            
+            let html = `<div class="${spread.layout} w-full">`;
+            spread.positions.forEach((pos, idx) => {
+                html += `
+                    <div class="relative aspect-[2/3] bg-purple-900/30 rounded-lg border-2 border-dashed border-purple-700 flex flex-col items-center justify-center p-2" id="slot-${idx}">
+                        <span class="text-xs text-purple-500 mb-1">${pos}</span>
+                        <span class="text-2xl text-purple-800">?</span>
+                        <span class="text-[10px] text-purple-600 mt-1">位置 ${idx + 1}</span>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            
+            container.innerHTML = html;
+        }
+
+        // 处理图片上传
+        function handleImageUpload(event) {
+            const files = event.target.files;
+            if (!files.length) return;
+
+            const container = document.getElementById('uploaded-images');
+            container.classList.remove('hidden');
+
+            Array.from(files).forEach((file, index) => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const imgData = e.target.result;
+                    uploadedImages.push(imgData);
+                    
+                    const div = document.createElement('div');
+                    div.className = 'relative aspect-square rounded-lg overflow-hidden border-2 border-[#d4af37] group';
+                    div.innerHTML = `
+                        <img src="${imgData}" class="w-full h-full object-cover" alt="上传的塔罗牌">
+                        <div class="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onclick="removeImage(${uploadedImages.length - 1})" class="text-red-400 hover:text-red-300">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                        <div class="absolute top-1 right-1 bg-[#d4af37] text-[#0f0c29] text-xs px-2 py-0.5 rounded-full font-bold">
+                            ${uploadedImages.length}
+                        </div>
+                    `;
+                    container.appendChild(div);
+
+                    // 如果上传数量达到牌阵要求，自动开始处理
+                    if (uploadedImages.length === SPREADS[currentSpread].positions.length) {
+                        setTimeout(startProcessing, 500);
+                    }
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // 移除图片
+        function removeImage(index) {
+            uploadedImages.splice(index, 1);
+            // 重新渲染
+            const container = document.getElementById('uploaded-images');
+            container.innerHTML = '';
+            uploadedImages.forEach((img, idx) => {
+                const div = document.createElement('div');
+                div.className = 'relative aspect-square rounded-lg overflow-hidden border-2 border-[#d4af37] group';
+                div.innerHTML = `
+                    <img src="${img}" class="w-full h-full object-cover">
+                    <div class="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onclick="removeImage(${idx})" class="text-red-400 hover:text-red-300">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                    <div class="absolute top-1 right-1 bg-[#d4af37] text-[#0f0c29] text-xs px-2 py-0.5 rounded-full font-bold">
+                        ${idx + 1}
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        // 显示手动输入
+        function showManualInput() {
+            const modal = document.getElementById('manual-modal');
+            const slots = document.getElementById('manual-slots');
+            const spread = SPREADS[currentSpread];
+            
+            slots.innerHTML = '';
+            spread.positions.forEach((pos, idx) => {
+                const div = document.createElement('div');
+                div.className = 'bg-purple-900/30 rounded-lg p-4 border border-purple-700';
+                div.innerHTML = `
+                    <label class="block text-[#d4af37] text-sm font-bold mb-2">${pos} (位置 ${idx + 1})</label>
+                    <div class="grid grid-cols-2 gap-2 mb-2">
+                        <select id="card-select-${idx}" class="w-full bg-[#0f0c29] border border-purple-600 rounded-lg px-3 py-2 text-purple-200 text-sm focus:border-[#d4af37] outline-none">
+                            <option value="">选择卡牌...</option>
+                            ${TAROT_CARDS.map(card => `<option value="${card.id}">${card.name} (${card.nameEn})</option>`).join('')}
+                        </select>
+                        <select id="orientation-${idx}" class="w-full bg-[#0f0c29] border border-purple-600 rounded-lg px-3 py-2 text-purple-200 text-sm focus:border-[#d4af37] outline-none">
+                            <option value="upright">正位 ⬆️</option>
+                            <option value="reversed">逆位 ⬇️</option>
+                        </select>
+                    </div>
+                `;
+                slots.appendChild(div);
+            });
+            
+            modal.classList.remove('hidden');
+        }
+
+        // 关闭手动输入
+        function closeManualModal() {
+            document.getElementById('manual-modal').classList.add('hidden');
+        }
+
+        // 确认手动选择
+        function confirmManualSelection() {
+            const spread = SPREADS[currentSpread];
+            currentCards = [];
+            
+            for (let i = 0; i < spread.positions.length; i++) {
+                const cardId = document.getElementById(`card-select-${i}`).value;
+                const orientation = document.getElementById(`orientation-${i}`).value;
+                
+                if (cardId === '') {
+                    alert(`请选择${spread.positions[i]}的卡牌`);
+                    return;
+                }
+                
+                const card = TAROT_CARDS.find(c => c.id == cardId);
+                currentCards.push({
+                    ...card,
+                    position: spread.positions[i],
+                    orientation: orientation,
+                    positionIndex: i
+                });
+            }
+            
+            closeManualModal();
+            startProcessing();
+        }
+
+        // 开始处理（模拟AI分析）
+        function startProcessing() {
+            document.getElementById('step-upload').classList.add('hidden');
+            document.getElementById('step-processing').classList.remove('hidden');
+            document.getElementById('step-processing').classList.add('flex');
+            
+            // 如果没有手动选择，随机生成（模拟识别结果）
+            if (currentCards.length === 0) {
+                const spread = SPREADS[currentSpread];
+                currentCards = spread.positions.map((pos, idx) => {
+                    const randomCard = TAROT_CARDS[Math.floor(Math.random() * TAROT_CARDS.length)];
+                    return {
+                        ...randomCard,
+                        position: pos,
+                        orientation: Math.random() > 0.7 ? 'reversed' : 'upright', // 30%概率逆位
+                        positionIndex: idx
+                    };
+                });
+            }
+
+            // 模拟进度
+            let progress = 0;
+            const texts = ['连接宇宙能量中...', '解析牌面符号...', '解读星象排列...', '合成指引信息...', '即将揭晓...'];
+            const progressBar = document.getElementById('progress-bar');
+            const processingText = document.getElementById('processing-text');
+            
+            const interval = setInterval(() => {
+                progress += Math.random() * 15 + 5;
+                if (progress > 100) progress = 100;
+                
+                progressBar.style.width = progress + '%';
+                const textIndex = Math.floor((progress / 100) * texts.length);
+                if (textIndex < texts.length) {
+                    processingText.textContent = texts[textIndex];
+                }
+                
+                if (progress >= 100) {
+                    clearInterval(interval);
+                    setTimeout(showResults, 500);
+                }
+            }, 400);
+        }
+
+        // 显示结果
+        function showResults() {
+            document.getElementById('step-processing').classList.add('hidden');
+            document.getElementById('step-processing').classList.remove('flex');
+            document.getElementById('step-result').classList.remove('hidden');
+            
+            const spread = SPREADS[currentSpread];
+            document.getElementById('spread-name').textContent = spread.name;
+            
+            // 生成总体解读
+            generateOverallReading();
+            
+            // 渲染卡牌
+            renderCards();
+            
+            // 生成指引
+            generateGuidance();
+            
+            // 滚动到顶部
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // 生成总体解读
+        function generateOverallReading() {
+            const uprightCards = currentCards.filter(c => c.orientation === 'upright');
+            const reversedCards = currentCards.filter(c => c.orientation === 'reversed');
+            const elements = currentCards.map(c => c.element);
+            
+            let reading = '';
+            
+            // 根据牌阵类型生成
+            if (currentSpread === 'single') {
+                reading = `今日的能量聚焦于${currentCards[0].name}。`;
+            } else if (currentSpread === 'past-present') {
+                reading = `从${currentCards[0].name}的过去，经由${currentCards[1].name}的现在，走向${currentCards[2].name}的未来。`;
+            } else {
+                reading = `牌阵揭示了深层的能量结构：`;
+            }
+            
+            // 添加元素分析
+            const elementCounts = {};
+            elements.forEach(e => elementCounts[e] = (elementCounts[e] || 0) + 1);
+            const dominantElement = Object.entries(elementCounts).sort((a,b) => b[1]-a[1])[0];
+            
+            if (dominantElement) {
+                const elementDesc = {
+                    '火': '行动与意志的能量强烈，适合积极推进计划',
+                    '水': '情感与直觉占据主导，关注内心感受和关系',
+                    '风': '思维与沟通活跃，理性分析和交流将带来突破',
+                    '土': '物质与现实基础稳固，关注实际成果和稳定性'
+                };
+                reading += ` ${elementDesc[dominantElement[0]]}。`;
+            }
+            
+            // 正逆位分析
+            if (reversedCards.length === 0) {
+                reading += ' 所有牌均为正位，能量流动顺畅，当前是积极行动的好时机。';
+            } else if (reversedCards.length > currentCards.length / 2) {
+                reading += ' 较多逆位牌提示需要内省和调整，可能存在未被察觉的阻碍或需要释放的旧模式。';
+            } else {
+                reading += ' 正逆位牌的平衡显示这是整合与调整的时期，既有外在进展也有内在成长的空间。';
+            }
+            
+            document.getElementById('overall-reading').textContent = reading;
+        }
+
+        // 渲染卡牌解读
+        function renderCards() {
+            const container = document.getElementById('cards-container');
+            container.innerHTML = '';
+            
+            currentCards.forEach((card, idx) => {
+                const isReversed = card.orientation === 'reversed';
+                const cardDiv = document.createElement('div');
+                cardDiv.className = 'interpretation-card rounded-xl p-4 md:p-6';
+                cardDiv.innerHTML = `
+                    <div class="flex flex-col md:flex-row gap-4">
+                        <!-- 卡牌图示 -->
+                        <div class="flex-shrink-0 mx-auto md:mx-0">
+                            <div class="tarot-card w-32 h-48 mx-auto ${isReversed ? 'flipped' : ''}" onclick="this.classList.toggle('flipped')">
+                                <div class="tarot-card-inner">
+                                    <div class="tarot-card-front card-pattern">
+                                        <div class="text-center">
+                                            <div class="text-3xl mb-2">${getCardEmoji(card.id)}</div>
+                                            <div class="text-[#d4af37] font-bold text-sm">${card.name}</div>
+                                            <div class="text-purple-400 text-xs mt-1">${card.nameEn}</div>
+                                            <div class="text-purple-500 text-xs mt-2">${card.element}元素</div>
+                                        </div>
+                                    </div>
+                                    <div class="tarot-card-back card-pattern">
+                                        <div class="text-[#d4af37] text-4xl opacity-50">✦</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="text-center mt-2">
+                                <span class="inline-block px-3 py-1 rounded-full text-xs font-bold ${isReversed ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400'}">
+                                    ${isReversed ? '逆位 ⬇️' : '正位 ⬆️'}
+                                </span>
+                            </div>
+                        </div>
+                        
+                        <!-- 解读内容 -->
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="bg-[#d4af37]/20 text-[#d4af37] px-2 py-0.5 rounded text-xs font-bold">
+                                    位置 ${idx + 1}: ${card.position}
+                                </span>
+                                <span class="text-purple-400 text-xs">关键词: ${card.keywords}</span>
+                            </div>
+                            <h4 class="text-lg font-bold text-purple-200 mb-2">${card.name} ${isReversed ? '(逆位)' : '(正位)'}</h4>
+                            <p class="text-purple-300 text-sm leading-relaxed mb-3">
+                                ${isReversed ? card.reversed : card.upright}
+                            </p>
+                            <div class="bg-purple-900/30 rounded-lg p-3 border-l-2 border-[#d4af37]">
+                                <p class="text-xs text-[#d4af37] font-bold mb-1">💫 位置指引</p>
+                                <p class="text-xs text-purple-300">${getPositionGuidance(card.position, card.name, isReversed)}</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(cardDiv);
+            });
+        }
+
+        // 获取卡牌表情
+        function getCardEmoji(id) {
+            const emojis = ['🃏', '🎩', '🔮', '👑', '⚔️', '⛪', '💕', '🏆', '🦁', '🕯️', '☸️', '⚖️', '🙃', '💀', '🍷', '😈', '🗼', '⭐', '🌙', '☀️', '📯', '🌍'];
+            return emojis[id] || '✨';
+        }
+
+        // 位置指引
+        function getPositionGuidance(position, cardName, reversed) {
+            const guidance = {
+                '当下指引': `作为单张指引，${cardName}直接反映了您当前需要的核心能量。${reversed ? '逆位提示需要特别关注此能量的阴影面。' : '正位鼓励您充分运用此能量的正面特质。'}`,
+                '过去': `这个位置揭示了影响当前状况的历史根源。${cardName}代表过去经历中形成的模式，${reversed ? '逆位显示这些影响可能以扭曲的方式呈现。' : '正位表明过去的基础仍在支持着您。'}`,
+                '现在': `当前能量中心。${cardName}描述了您此刻正在经历的核心课题，${reversed ? '逆位提示您可能尚未完全接纳或理解当前状况。' : '正位显示您正积极面对当下的挑战。'}`,
+                '未来': `即将到来的能量趋势。${cardName}预示了事态发展的方向，${reversed ? '逆位提醒未来仍有变数，您的选择可以改变轨迹。' : '正位确认了积极的进展和实现的可能。'}`,
+                '现状': `当前处境的核心。${cardName}揭示了问题的本质，${reversed ? '逆位表示现状中存在被忽视或压抑的面向。' : '正位确认了您对自身处境的清晰认知。'}`,
+                '阻碍': `需要克服的挑战。${cardName}在此位置特别重要，${reversed ? '逆位可能暗示阻碍来自内在或过去的创伤。' : '正位显示阻碍是成长必经的考验。'}`,
+                '根基': `深层的基础和潜意识动机。${cardName}揭示了真正驱动您的力量，${reversed ? '逆位提示根基可能不稳或基于错误信念。' : '正位显示您有坚实的基础支持。'}`,
+                '目标': `您真正渴望达成的方向。${cardName}反映了内心深处的追求，${reversed ? '逆位可能暗示目标需要重新评估或调整。' : '正位确认了目标与更高目的的契合。'}`,
+                '自我': `您在这个情境中的角色。${cardName}描述了您展现的态度和方式，${reversed ? '逆位提示可能需要调整自我表达的方式。' : '正位鼓励您保持当前的自我定位。'}`,
+                '环境': `外部影响和他人态度。${cardName}反映了周围环境的能量，${reversed ? '逆位显示环境中存在混乱或误导性信息。' : '正位表明环境支持您的成长。'}`,
+                '希望': `最理想的 outcome 或深层愿望。${cardName}代表了您心中的美好愿景，${reversed ? '逆位提醒希望可能过于理想化或需要更务实的调整。' : '正位确认了希望实现的可能性。'}`,
+                '结果': `如果保持当前路径的最终 outcome。${cardName}给出了综合所有因素后的预示，${reversed ? '逆位提示结果仍可通过改变行为来转变。' : '正位确认了积极 resolution 的可能。'}`
+            };
+            return guidance[position] || `${cardName}在这个位置具有特殊的意义，请结合整体牌阵来理解其深层信息。`;
+        }
+
+        // 生成宇宙指引
+        function generateGuidance() {
+            const guidance = [];
+            const majorArcana = currentCards.filter(c => c.id >= 0 && c.id <= 21);
+            
+            if (majorArcana.length >= 3) {
+                guidance.push('• 大牌能量强烈，这是一个具有重要人生意义的时期，宇宙正在传达关键信息');
+            }
+            
+            const hasCourtCards = currentCards.some(c => c.id >= 22); // 假设宫廷牌从22开始
+            if (!hasCourtCards) {
+                guidance.push('• 关注内在角色而非外在人物，这次占卜主要反映您自身的心理状态');
+            }
+            
+            const reversedCount = currentCards.filter(c => c.orientation === 'reversed').length;
+            if (reversedCount > 0) {
+                guidance.push('• 逆位牌提示释放旧有模式，允许自己以新的方式看待问题');
+            }
+            
+            // 添加随机指引
+            const randomGuidance = [
+                '• 保持内心的平静，信任直觉的指引',
+                '• 当前是采取行动的好时机，宇宙能量支持您的决定',
+                '• 注意身边出现的同步性征兆，那是宇宙的回应',
+                '• 在做出重要决定前，给自己时间冥想和反思',
+                '• 与信任的朋友分享您的感受，集体的智慧会带来启发',
+                '• 记录您的梦境，潜意识正在通过象征语言与您对话',
+                '• 感恩当前的处境，即使是挑战也蕴含着成长的种子'
+            ];
+            
+            const shuffled = randomGuidance.sort(() => 0.5 - Math.random());
+            guidance.push(...shuffled.slice(0, 3));
+            
+            document.getElementById('guidance-text').innerHTML = guidance.map(g => `<p>${g}</p>`).join('');
+        }
+
+        // 保存解读
+        function saveReading() {
+            const reading = {
+                date: new Date().toLocaleString('zh-CN'),
+                spread: SPREADS[currentSpread].name,
+                cards: currentCards,
+                overall: document.getElementById('overall-reading').textContent
+            };
+            
+            const saved = JSON.parse(localStorage.getItem('tarotReadings') || '[]');
+            saved.push(reading);
+            localStorage.setItem('tarotReadings', JSON.stringify(saved));
+            
+            alert('解读已保存到本地历史记录');
+        }
+
+        // 分享解读
+        function shareReading() {
+            const text = `🔮 塔罗灵视解读\n牌阵：${SPREADS[currentSpread].name}\n\n总体指引：${document.getElementById('overall-reading').textContent.substring(0, 100)}...\n\n来体验你的塔罗解读吧！`;
+            
+            if (navigator.share) {
+                navigator.share({
+                    title: '我的塔罗牌解读',
+                    text: text
+                });
+            } else {
+                navigator.clipboard.writeText(text).then(() => alert('解读内容已复制到剪贴板'));
+            }
+        }
+
+        // 重置应用
+        function resetApp() {
+            currentSpread = null;
+            currentCards = [];
+            uploadedImages = [];
+            
+            document.getElementById('step-spread').classList.remove('hidden');
+            document.getElementById('step-upload').classList.add('hidden');
+            document.getElementById('step-processing').classList.add('hidden');
+            document.getElementById('step-processing').classList.remove('flex');
+            document.getElementById('step-result').classList.add('hidden');
+            document.getElementById('uploaded-images').innerHTML = '';
+            document.getElementById('uploaded-images').classList.add('hidden');
+            
+            document.querySelectorAll('.spread-option').forEach(el => {
+                el.classList.remove('border-[#d4af37]', 'bg-purple-900/50');
+                el.classList.add('border-purple-700/50');
+            });
+            
+            document.getElementById('spread-preview').innerHTML = `
+                <div class="text-purple-500 text-center">
+                    <i class="fas fa-layer-group text-4xl mb-2"></i>
+                    <p>请先选择牌阵类型</p>
+                </div>
+            `;
+            
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // 拖拽上传支持
+        document.addEventListener('DOMContentLoaded', () => {
+            initStars();
+            
+            const uploadZones = document.querySelectorAll('.upload-zone');
+            uploadZones.forEach(zone => {
+                zone.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    zone.classList.add('dragover');
+                });
+                
+                zone.addEventListener('dragleave', () => {
+                    zone.classList.remove('dragover');
+                });
+                
+                zone.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    zone.classList.remove('dragover');
+                    if (e.dataTransfer.files.length) {
+                        const input = zone.querySelector('input');
+                        const dt = new DataTransfer();
+                        Array.from(e.dataTransfer.files).forEach(f => dt.items.add(f));
+                        input.files = dt.files;
+                        input.dispatchEvent(new Event('change'));
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
